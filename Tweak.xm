@@ -69,13 +69,33 @@ NSString *const myAdUnitId = @"test0318";
     NSLog(@"[IPA918] 🚀 啟動 Unity Ads 引擎...");
     [UnityAds initialize:myGameId testMode:YES initializationDelegate:[UnityAdsHelper sharedInstance]];
     
-    // 🌟 改變戰術：不管畫面了，App 啟動後直接倒數 10 秒！(給遊戲足夠的載入時間)
+    // 🌟 改變戰術：不管畫面了，App 啟動後直接倒數 10 秒！
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         
         NSLog(@"[IPA918] 🎯 10 秒時間到！尋找最頂層畫面準備轟炸...");
         
-        // 🌟 尋找目前手機畫面上「最頂層」的那個畫面 (對付遊戲引擎的必殺技)
-        UIViewController *topController = [UIApplication sharedApplication].keyWindow.rootViewController;
+        // 🌟 修正：使用 iOS 13+ 的最新語法來抓取 Window，避免編譯器報錯
+        UIWindow *keyWindow = nil;
+        if (@available(iOS 13.0, *)) {
+            for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
+                if (scene.activationState == UISceneActivationStateForegroundActive) {
+                    for (UIWindow *window in scene.windows) {
+                        if (window.isKeyWindow) {
+                            keyWindow = window;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 如果是舊版系統，用安全降級寫法
+        if (!keyWindow) {
+            keyWindow = [[UIApplication sharedApplication] windows].firstObject;
+        }
+        
+        // 抓取最頂層畫面
+        UIViewController *topController = keyWindow.rootViewController;
         while (topController.presentedViewController) {
             topController = topController.presentedViewController;
         }
