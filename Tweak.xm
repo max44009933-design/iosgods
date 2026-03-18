@@ -1,12 +1,14 @@
 #import <UIKit/UIKit.h>
 #import <UnityAds/UnityAds.h>
 
-// 🔴 你的專屬 ID (保持不變)
-NSString *const myGameId = @"5059216";
-NSString *const myAdUnitId = @"test0318";
+// ==========================================
+// 🔴 配置區：填入你的 Unity 資訊
+// ==========================================
+NSString *const myGameId = @"5059216";    // 你的 Game ID
+NSString *const myAdUnitId = @"test0318"; // 你的 Ad Unit ID (Placement ID)
 
 // ==========================================
-// 🌟 新增功能：專屬的廣告聯絡人 (適應新版 SDK)
+// 🌟 廣告助手：負責處理載入與顯示的回報
 // ==========================================
 @interface UnityAdsHelper : NSObject <UnityAdsInitializationDelegate, UnityAdsLoadDelegate, UnityAdsShowDelegate>
 + (instancetype)sharedInstance;
@@ -23,55 +25,56 @@ NSString *const myAdUnitId = @"test0318";
     return sharedInstance;
 }
 
-// 1. 初始化成功的回報
+// SDK 初始化成功
 - (void)initializationComplete {
-    NSLog(@"[IPA918] 🟢 Unity Ads 初始化成功！正在幫你預先下載廣告...");
-    // 初始化成功後，馬上呼叫 load 準備廣告
+    NSLog(@"[IPA918] 🟢 Unity SDK 初始化成功！開始預載廣告...");
     [UnityAds load:myAdUnitId loadDelegate:self];
 }
 
-// 2. 初始化失敗的回報
+// SDK 初始化失敗
 - (void)initializationFailed:(UnityAdsInitializationError)error withMessage:(NSString *)message {
-    NSLog(@"[IPA918] 🔴 Unity Ads 初始化失敗: %@", message);
+    NSLog(@"[IPA918] 🔴 Unity SDK 初始化失敗: %@", message);
 }
 
-// 3. 廣告影片下載完成的回報
+// 廣告載入成功
 - (void)unityAdsAdLoaded:(NSString *)placementId {
-    NSLog(@"[IPA918] 🟢 廣告影片已經下載完畢，隨時可以發射！ ID: %@", placementId);
+    NSLog(@"[IPA918] 🟢 廣告影片載入完畢！隨時可以播放。");
 }
 
-// 4. 廣告影片下載失敗的回報
-- (void)unityAdsAdFailedToLoad:(NSString *)placementId
-                     withError:(UnityAdsLoadError)error
-                   withMessage:(NSString *)message {
-    NSLog(@"[IPA918] 🔴 廣告下載失敗: %@", message);
+// 廣告載入失敗
+- (void)unityAdsAdFailedToLoad:(NSString *)placementId withError:(UnityAdsLoadError)error withMessage:(NSString *)message {
+    NSLog(@"[IPA918] 🔴 廣告載入失敗: %@", message);
 }
 
-// 5. 各種播放狀態的回報 (⚠️ 這裡完美修正了 withFinishState ！)
+// 廣告播放完畢 (⚠️ 這裡已修正為最新版的 withFinishState)
 - (void)unityAdsShowComplete:(NSString *)placementId withFinishState:(UnityAdsShowCompletionState)state {
-    NSLog(@"[IPA918] 🎬 廣告順利播完啦！可以發獎勵了！");
+    NSLog(@"[IPA918] 🎬 廣告播放完成！");
 }
+
 - (void)unityAdsShowFailed:(NSString *)placementId withError:(UnityAdsShowError)error withMessage:(NSString *)message {
-    NSLog(@"[IPA918] 🔴 廣告播放發生錯誤: %@", message);
+    NSLog(@"[IPA918] 🔴 廣告播放失敗: %@", message);
 }
+
 - (void)unityAdsShowStart:(NSString *)placementId {
-    NSLog(@"[IPA918] 🎬 廣告開始播放");
+    NSLog(@"[IPA918] 🎬 廣告開始顯示");
 }
+
 - (void)unityAdsShowClick:(NSString *)placementId {
     NSLog(@"[IPA918] 👆 用戶點擊了廣告");
 }
 @end
 
 // ==========================================
-// 🚀 原有功能：攔截 App 啟動與畫面載入 (保留原本的 5 秒倒數邏輯)
+// 🚀 注入點：Hook 系統方法
 // ==========================================
 
 %hook UIApplication
-// App 啟動時，第一時間喚醒 Unity Ads SDK
+// 在 App 啟動時初始化 Unity Ads
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     %orig; 
     
-    NSLog(@"[IPA918] 啟動 Unity Ads 引擎...");
+    NSLog(@"[IPA918] 正在初始化 Unity Ads 引擎...");
+    // 啟動初始化程序
     [UnityAds initialize:myGameId testMode:YES initializationDelegate:[UnityAdsHelper sharedInstance]];
     
     return YES;
@@ -79,17 +82,20 @@ NSString *const myAdUnitId = @"test0318";
 %end
 
 %hook UIViewController
-// 攔截 App 的畫面載入
+// 攔截畫面載入，執行 5 秒倒數邏輯
 - (void)viewDidAppear:(BOOL)animated {
     %orig; 
     
+    // 使用 static 確保這個自動跳轉邏輯在 App 啟動後只執行一次
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        NSLog(@"[IPA918] ⏱️ 畫面載入完畢，開始倒數 5 秒...");
+        NSLog(@"[IPA918] ⏱️ 偵測到畫面載入，5 秒倒數開始...");
         
+        // 延遲 5.0 秒執行
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             
-            NSLog(@"[IPA918] 🎯 5 秒時間到！嘗試強制彈出廣告 ID: %@", myAdUnitId);
+            NSLog(@"[IPA918] 🎯 時間到！嘗試呼叫廣告播放...");
+            // 呼叫播放，並帶入 Helper 作為代理
             [UnityAds show:self placementId:myAdUnitId showDelegate:[UnityAdsHelper sharedInstance]];
             
         });
