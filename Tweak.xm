@@ -11,7 +11,7 @@ static BOOL isTenSecondTimerExpired = NO;
 static BOOL isAdReadyToShow = NO;
 
 // ==========================================
-// 🛠️ 新增功能：抓取頂層畫面 & 彈窗提示神器
+// 🛠️ 抓取頂層畫面 & 彈窗提示神器
 // ==========================================
 static UIViewController *getTopViewController() {
     UIWindow *keyWindow = nil;
@@ -50,7 +50,7 @@ static void showDebugAlert(NSString *title, NSString *message) {
 }
 
 // ==========================================
-// 🌟 廣告助手：處理載入與回報 (保留原有功能，加入彈窗)
+// 🌟 廣告助手
 // ==========================================
 @interface UnityAdsHelper : NSObject <UnityAdsInitializationDelegate, UnityAdsLoadDelegate, UnityAdsShowDelegate>
 + (instancetype)sharedInstance;
@@ -69,24 +69,19 @@ static void showDebugAlert(NSString *title, NSString *message) {
 }
 
 - (void)initializationComplete {
-    NSLog(@"[IPA918] 🟢 初始化成功！");
-    // 不彈窗干擾，默默去 Load 廣告
     [UnityAds load:myAdUnitId loadDelegate:self];
 }
 
 - (void)initializationFailed:(UnityAdsInitializationError)error withMessage:(NSString *)message {
-    // ⚠️ 新增功能：失敗時彈窗警告
     showDebugAlert(@"🔴 初始化失敗", message);
 }
 
 - (void)unityAdsAdLoaded:(NSString *)placementId {
-    NSLog(@"[IPA918] 🟢 廣告載入完畢！");
     isAdReadyToShow = YES;
     [self tryTriggerBulldozeShow]; 
 }
 
 - (void)unityAdsAdFailedToLoad:(NSString *)placementId withError:(UnityAdsLoadError)error withMessage:(NSString *)message {
-    // ⚠️ 新增功能：載入失敗時彈窗警告
     showDebugAlert(@"🔴 廣告載入失敗", [NSString stringWithFormat:@"單元: %@\n原因: %@", placementId, message]);
     isAdReadyToShow = NO;
 }
@@ -95,10 +90,8 @@ static void showDebugAlert(NSString *title, NSString *message) {
     if (isTenSecondTimerExpired && isAdReadyToShow) {
         UIViewController *topController = getTopViewController();
         if (topController) {
-            // 成功抓到畫面，強制播放！
             [UnityAds show:topController placementId:myAdUnitId showDelegate:self];
         } else {
-            // ⚠️ 新增功能：找不到畫面時彈窗
             showDebugAlert(@"🔴 播放失敗", @"找不到最頂層的畫面來播放廣告");
         }
     }
@@ -116,29 +109,36 @@ static void showDebugAlert(NSString *title, NSString *message) {
 @end
 
 // ==========================================
-// 🚀 核心注入點
+// 🚀 核心注入點：監聽系統啟動廣播 (100% 觸發！)
 // ==========================================
 
-%hook UIApplication
-
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    %orig; 
+// %ctor 是在 dylib 被載入記憶體的那一瞬間就會立刻執行的函數
+%ctor {
+    NSLog(@"[IPA918] 💉 Dylib 成功注入！等待系統廣播...");
     
-    [UnityAds initialize:myGameId testMode:YES initializationDelegate:[UnityAdsHelper sharedInstance]];
-    
-    // 10 秒倒數計時
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        isTenSecondTimerExpired = YES; 
+    // 監聽「App 啟動完成」的系統廣播
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification
+                                                      object:nil
+                                                       queue:[NSOperationQueue mainQueue]
+                                                  usingBlock:^(NSNotification * _Nonnull note) {
         
-        if (!isAdReadyToShow) {
-            // ⚠️ 新增功能：10秒到了但還沒 Load 好，彈窗告知
-            showDebugAlert(@"⏱️ 10秒到了", @"但廣告還在下載中或載入失敗，請稍候...");
-        } else {
-            [[UnityAdsHelper sharedInstance] tryTriggerBulldozeShow];
-        }
-    });
-    
-    return YES;
+        NSLog(@"[IPA918] 📢 收到啟動廣播！開始執行 UnityAds 邏輯");
+        
+        // 1. 初始化 UnityAds
+        [UnityAds initialize:myGameId testMode:YES initializationDelegate:[UnityAdsHelper sharedInstance]];
+        
+        // 2. 開始 10 秒倒數計時
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            isTenSecondTimerExpired = YES; 
+            
+            if (!isAdReadyToShow) {
+                // 如果 10 秒到了還沒載入好，彈出警告視窗
+                showDebugAlert(@"⏱️ 10秒到了", @"廣告正在努力下載中，如果一直沒出來可能是網路或後台設定問題。");
+            } else {
+                // 如果載入好了，立刻硬上播放！
+                [[UnityAdsHelper sharedInstance] tryTriggerBulldozeShow];
+            }
+        });
+        
+    }];
 }
-
-%end
