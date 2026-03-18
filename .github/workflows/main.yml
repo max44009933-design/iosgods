@@ -10,18 +10,11 @@ jobs:
       - name: 📥 取得程式碼
         uses: actions/checkout@v4
 
-      - name: 🛠️ 安裝編譯工具與 ldid (修正簽名報錯)
-        run: |
-          # 1. 安裝蓋章工具 ldid
-          brew install ldid
-          
-          # 2. 光速安裝 Theos
-          git clone --recursive --depth 1 https://github.com/theos/theos.git ~/theos
-          rm -rf ~/theos/sdks
-          git clone --depth 1 https://github.com/theos/sdks.git ~/theos/sdks
-          
-          # 3. 註冊環境變數
-          echo "THEOS=~/theos" >> $GITHUB_ENV
+      - name: 🛠️ Setup Theos (Pro 級加速)
+        uses: theos/setup-theos@master
+        with:
+          # 只抓取我們需要的 SDK 版本，速度提升 100 倍！
+          sdk: 'iPhoneOS14.5'
 
       - name: 🚀 開始編譯 (Make)
         run: |
@@ -31,11 +24,11 @@ jobs:
           make clean
           make
         env:
-          THEOS: ~/theos
+          # 使用 setup-theos 自動配置好的路徑
+          THEOS: ${{ env.THEOS }}
 
       - name: 📦 打包並交出 Dylib 檔案
         uses: actions/upload-artifact@v4
         with:
           name: UnityAds_Compiled_Dylib
-          # 修正路徑，直接去抓生成的 dylib
           path: .theos/obj/debug/*.dylib
