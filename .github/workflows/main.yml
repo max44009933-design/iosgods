@@ -17,6 +17,11 @@ jobs:
           git clone --depth 1 https://github.com/theos/sdks.git ~/theos/sdks
           echo "THEOS=~/theos" >> $GITHUB_ENV
 
+      - name: 🔍 檢查 Frameworks 目錄 (抓蟲專用！)
+        run: |
+          echo "看看 layout/Library/Frameworks 裡面有什麼東東："
+          ls -la ./layout/Library/Frameworks/
+
       - name: 🚀 開始編譯 (Make)
         run: |
           # 🌟 魔法指令：叫機器人當場生出一個空的 Dummy.swift 給 Theos 用！
