@@ -1,0 +1,30 @@
+name: 生成 UnityAds Dylib
+
+on:
+  workflow_dispatch: # 讓你可以手動點擊按鈕觸發編譯
+
+jobs:
+  build:
+    runs-on: macos-latest # 召喚免費的蘋果虛擬機
+    steps:
+      - name: 📥 取得程式碼
+        uses: actions/checkout@v4
+
+      - name: 🛠️ 安裝 Theos 編譯環境
+        run: |
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
+          echo "THEOS=~/theos" >> $GITHUB_ENV
+
+      - name: 🚀 開始編譯 (Make)
+        run: |
+          make clean
+          make
+        env:
+          THEOS: ~/theos
+
+      - name: 📦 打包並交出 Dylib 檔案
+        uses: actions/upload-artifact@v4
+        with:
+          name: UnityAds_Compiled_Dylib
+          # 這裡會自動去抓編譯出來的 dylib
+          path: .theos/obj/debug/*.dylib
