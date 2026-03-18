@@ -1,0 +1,9 @@
+Package: com.ipa918.unityadstweak
+Name: UnityAdsTweak
+Depends: mobilesubstrate
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: 5秒自動跳出Unity廣告測試版
+Maintainer: ipa918
+Author: ipa918
+Section: Tweaks
