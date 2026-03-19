@@ -8,8 +8,8 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = UnityAdsTweak
 
-# 🌟 新增 fishhook.c！(這是啟動「不死神盾」防閃退的關鍵零件)
-UnityAdsTweak_FILES = Tweak.xm Dummy.swift fishhook.c
+# 🌟 已經拔除 fishhook.c，回歸最純淨的編譯環境！
+UnityAdsTweak_FILES = Tweak.xm Dummy.swift
 
 # 🌟 基礎系統框架，確保廣告播放與網頁顯示正常
 UnityAdsTweak_FRAMEWORKS = UIKit Foundation WebKit AVFoundation CoreMedia
