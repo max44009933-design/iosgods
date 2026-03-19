@@ -3,12 +3,13 @@
 #import <UnityAds/UnityAds.h>
 
 // ==========================================
-// 🔴 配置區 (正式上線賺錢版)
+// 🔴 配置區 (一般 APP 正式廣告版)
 // ==========================================
+// ⚠️ 記得換成你新專案的 Game ID 和 廣告單元 ID
 NSString *const myGameId = @"6069216";    
-NSString *const myAdUnitId = @"test0318"; 
+NSString *const myAdUnitId = @"iosapp"; 
 
-static BOOL isTenSecondTimerExpired = NO;
+static BOOL isTimerExpired = NO;
 static BOOL isAdReadyToShow = NO;
 
 // ==========================================
@@ -40,13 +41,11 @@ static UIViewController *getTopViewController() {
 }
 
 // ==========================================
-// 🌟 廣告助手 + 無敵防護雷達
+// 🌟 廣告助手
 // ==========================================
 @interface UnityAdsHelper : NSObject <UnityAdsInitializationDelegate, UnityAdsLoadDelegate, UnityAdsShowDelegate>
 + (instancetype)sharedInstance;
 - (void)tryTriggerBulldozeShow; 
-- (void)startRadar;
-- (void)scanAndWipe:(UIView *)view; 
 @end
 
 @implementation UnityAdsHelper
@@ -82,7 +81,7 @@ static UIViewController *getTopViewController() {
 }
 
 - (void)tryTriggerBulldozeShow {
-    if (isTenSecondTimerExpired && isAdReadyToShow) {
+    if (isTimerExpired && isAdReadyToShow) {
         UIViewController *topController = getTopViewController();
         if (topController) {
             NSLog(@"[IPA918] 🎬 條件達成，開始播放廣告！");
@@ -100,73 +99,6 @@ static UIViewController *getTopViewController() {
 - (void)unityAdsShowStart:(NSString *)placementId {}
 - (void)unityAdsShowClick:(NSString *)placementId {}
 
-// --- 🎯 無敵防護雷達：默默粉碎隱形觸控牆 ---
-- (void)startRadar {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        [NSTimer scheduledTimerWithTimeInterval:1.0 repeats:YES block:^(NSTimer *timer) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                @try {
-                    NSArray *windows = [[UIApplication sharedApplication].windows copy];
-                    for (UIWindow *window in windows) { 
-                        NSString *windowClass = NSStringFromClass([window class]);
-                        if ([windowClass containsString:@"Remote"] || 
-                            [windowClass containsString:@"Keyboard"] || 
-                            [windowClass containsString:@"TextEffects"] || 
-                            [windowClass containsString:@"Host"] || 
-                            [windowClass containsString:@"Secure"]) {
-                            continue; 
-                        }
-                        [self scanAndWipe:window]; 
-                    }
-                } @catch (NSException *e) {}
-            });
-        }];
-    });
-}
-
-- (void)scanAndWipe:(UIView *)view {
-    @try {
-        if (!view || view.hidden) return; 
-
-        NSString *txt = nil;
-        if ([view isKindOfClass:[UILabel class]]) txt = ((UILabel *)view).text;
-        else if ([view isKindOfClass:[UIButton class]]) txt = ((UIButton *)view).titleLabel.text;
-
-        if (txt && txt.length > 0) {
-            if ([txt containsString:@"tampered"] || [txt containsString:@"injected"] || 
-                [txt isEqualToString:@"Understood"] || [txt isEqualToString:@"WARNING"]) {
-                
-                UIView *shield = view;
-                while (shield.superview) {
-                    UIView *parent = shield.superview;
-                    NSString *parentClass = NSStringFromClass([parent class]);
-                    
-                    if ([parent isKindOfClass:[UIWindow class]]) break;
-                    if (parent == parent.window.rootViewController.view) break;
-                    if ([parentClass containsString:@"Unity"]) break;
-                    if ([parentClass containsString:@"Transition"]) break;
-                    if ([parentClass containsString:@"DropShadow"]) break;
-                    
-                    shield = parent;
-                }
-                
-                NSLog(@"[IPA918] 🎯 默默拔除外掛警告窗！");
-                shield.hidden = YES;
-                shield.userInteractionEnabled = NO;
-                shield.alpha = 0.0;
-                shield.frame = CGRectMake(-9999, -9999, 1, 1); 
-                [shield removeFromSuperview];
-            }
-        }
-        
-        NSArray *subs = [view.subviews copy];
-        for (UIView *sub in subs) {
-            [self scanAndWipe:sub];
-        }
-    } @catch (NSException *e) {}
-}
-
 @end
 
 // ==========================================
@@ -180,19 +112,18 @@ static UIViewController *getTopViewController() {
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification * _Nonnull note) {
         
-        NSLog(@"[IPA918] 📢 啟動廣播到達！");
+        NSLog(@"[IPA918] 📢 啟動廣播到達！開始初始化廣告...");
         
-        // 🌟 啟動雷達防護
-        [[UnityAdsHelper sharedInstance] startRadar];
-        
-        // 🌟 初始化廣告
+        // 🌟 初始化廣告 (一般 App 直接初始化即可，不須延遲)
         [UnityAds initialize:myGameId testMode:NO initializationDelegate:[UnityAdsHelper sharedInstance]];
         
         // 🌟 10 秒倒數播放
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            isTenSecondTimerExpired = YES; 
+            isTimerExpired = YES; 
             if (isAdReadyToShow) {
                 [[UnityAdsHelper sharedInstance] tryTriggerBulldozeShow];
+            } else {
+                NSLog(@"[IPA918] ⏳ 10秒到了但廣告還沒抓到，等它下載好會自動補放。");
             }
         });
         
