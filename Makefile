@@ -11,8 +11,8 @@ TWEAK_NAME = UnityAdsTweak
 # 🌟 已經拔除 fishhook.c，回歸最純淨的編譯環境！
 UnityAdsTweak_FILES = Tweak.xm Dummy.swift
 
-# 🌟 基礎系統框架，確保廣告播放與網頁顯示正常
-UnityAdsTweak_FRAMEWORKS = UIKit Foundation WebKit AVFoundation CoreMedia
+# 🌟 基礎系統框架 (已移除不需要的 WebKit，達到極致輕量化)
+UnityAdsTweak_FRAMEWORKS = UIKit Foundation AVFoundation CoreMedia
 
 # 🌟 編譯參數：指向你存放 UnityAds.framework 的位置
 UnityAdsTweak_CFLAGS = -fobjc-arc -F./layout/Library/Frameworks
