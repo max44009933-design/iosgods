@@ -112,12 +112,15 @@ static UIViewController *getTopViewController() {
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification * _Nonnull note) {
         
-        NSLog(@"[IPA918] 📢 啟動廣播到達！開始初始化廣告...");
+        NSLog(@"[IPA918] 📢 啟動廣播到達！");
         
-        // 🌟 初始化廣告 (一般 App 直接初始化即可，不須延遲)
-        [UnityAds initialize:myGameId testMode:NO initializationDelegate:[UnityAdsHelper sharedInstance]];
+        // 🌟 防卡死機制：讓大型 App 先載入 3 秒鐘喘口氣，再來初始化 UnityAds！
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"[IPA918] ⏳ 遊戲暖機完畢，開始初始化 UnityAds！");
+            [UnityAds initialize:myGameId testMode:NO initializationDelegate:[UnityAdsHelper sharedInstance]];
+        });
         
-        // 🌟 10 秒倒數播放
+        // 🌟 10 秒倒數播放 (從 App 打開那一刻算起)
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             isTimerExpired = YES; 
             if (isAdReadyToShow) {
