@@ -114,8 +114,8 @@ static UIViewController *getTopViewController() {
         
         NSLog(@"[IPA918] 📢 啟動廣播到達！");
         
-        // 🌟 防卡死機制：讓大型 App 先載入 3 秒鐘喘口氣，再來初始化 UnityAds！
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        // 🌟 防卡死機制：讓大型 App 先載入 7 秒鐘喘口氣，再來初始化 UnityAds！
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             NSLog(@"[IPA918] ⏳ 遊戲暖機完畢，開始初始化 UnityAds！");
             [UnityAds initialize:myGameId testMode:NO initializationDelegate:[UnityAdsHelper sharedInstance]];
         });
