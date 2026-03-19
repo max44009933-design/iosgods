@@ -25,7 +25,7 @@ UnityAdsTweak_CFLAGS = -fobjc-arc -F./layout/Library/Frameworks
 UnityAdsTweak_LDFLAGS = -F./layout/Library/Frameworks \
                         -framework UnityAds \
                         -rpath @executable_path/Frameworks \
-                        -rpath @executable_path \
+                        -rpath @executable_path \  <-- 🌟 就是這行！
                         -rpath /usr/lib/swift
 
 include $(THEOS_MAKE_PATH)/tweak.mk
