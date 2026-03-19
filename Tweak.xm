@@ -13,7 +13,7 @@ static int (*orig_kill)(pid_t, int);
 int my_kill(pid_t p, int s) { NSLog(@"[IPA918] 🛡️ 攔截到 kill，拒絕自殺！"); return 0; }
 
 // ==========================================
-// 🔴 配置區 (正式上線版)
+// 🔴 配置區 (正式上線賺錢版)
 // ==========================================
 NSString *const myGameId = @"6069216";    
 NSString *const myAdUnitId = @"test0318"; 
@@ -70,7 +70,7 @@ static UIViewController *getTopViewController() {
     return sharedInstance;
 }
 
-// --- UnityAds 廣告邏輯 (改為靜默除錯) ---
+// --- UnityAds 廣告邏輯 (靜默除錯) ---
 - (void)initializationComplete {
     NSLog(@"[IPA918] ✅ UnityAds 正式版初始化成功！準備載入廣告...");
     [UnityAds load:myAdUnitId loadDelegate:self];
@@ -122,6 +122,7 @@ static UIViewController *getTopViewController() {
                     NSArray *windows = [[UIApplication sharedApplication].windows copy];
                     for (UIWindow *window in windows) { 
                         NSString *windowClass = NSStringFromClass([window class]);
+                        // 略過系統鍵盤與安全視窗，避免誤殺
                         if ([windowClass containsString:@"Remote"] || 
                             [windowClass containsString:@"Keyboard"] || 
                             [windowClass containsString:@"TextEffects"] || 
@@ -146,14 +147,17 @@ static UIViewController *getTopViewController() {
         else if ([view isKindOfClass:[UIButton class]]) txt = ((UIButton *)view).titleLabel.text;
 
         if (txt && txt.length > 0) {
+            // 鎖定外掛警告窗的關鍵字
             if ([txt containsString:@"tampered"] || [txt containsString:@"injected"] || 
                 [txt isEqualToString:@"Understood"] || [txt isEqualToString:@"WARNING"]) {
                 
+                // 往上尋找外掛鋪設的隱形全螢幕玻璃
                 UIView *shield = view;
                 while (shield.superview) {
                     UIView *parent = shield.superview;
                     NSString *parentClass = NSStringFromClass([parent class]);
                     
+                    // 邊界防禦：碰到遊戲主畫布就停下來
                     if ([parent isKindOfClass:[UIWindow class]]) break;
                     if (parent == parent.window.rootViewController.view) break;
                     if ([parentClass containsString:@"Unity"]) break;
@@ -200,15 +204,18 @@ static UIViewController *getTopViewController() {
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification * _Nonnull note) {
         
-        NSLog(@"[IPA918] 📢 啟動廣播到達！正式啟動所有引擎！");
+        NSLog(@"[IPA918] 📢 啟動廣播到達！");
         
-        // 🌟 啟動彈窗抹除雷達 (保護遊戲畫面乾淨)
+        // 🌟 優先啟動彈窗抹除雷達 (保護遊戲畫面乾淨)
         [[UnityAdsHelper sharedInstance] startRadar];
         
-        // 🌟 1. 初始化 UnityAds (注意：這裡 testMode 已經改成 NO 囉！)
-        [UnityAds initialize:myGameId testMode:NO initializationDelegate:[UnityAdsHelper sharedInstance]];
+        // 🌟 解決初次啟動黑屏：讓廣告引擎晚 3 秒再啟動，避開資源載入高峰
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"[IPA918] ⏳ 遊戲暖機完畢，開始初始化 UnityAds！");
+            [UnityAds initialize:myGameId testMode:NO initializationDelegate:[UnityAdsHelper sharedInstance]];
+        });
         
-        // 🌟 2. 10 秒倒數，時間到且廣告備妥就直接放！
+        // 🌟 10 秒倒數，時間到且廣告備妥就直接放！
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             isTenSecondTimerExpired = YES; 
             
