@@ -18,14 +18,10 @@ UnityAdsTweak_FRAMEWORKS = UIKit Foundation AVFoundation CoreMedia
 UnityAdsTweak_CFLAGS = -fobjc-arc -F./layout/Library/Frameworks
 
 # 🌟 【最重要】連結參數：
-# 1. -framework UnityAds: 連結你的廣告庫
-# 2. -rpath @executable_path/Frameworks: 讓 iOS 去標準資料夾找 framework
-# 3. -rpath @executable_path: (保險絲) 如果 ESign 塞在根目錄 (/) 也能找到！
-# 4. -rpath /usr/lib/swift: 確保 Swift 環境正常
 UnityAdsTweak_LDFLAGS = -F./layout/Library/Frameworks \
                         -framework UnityAds \
                         -rpath @executable_path/Frameworks \
-                        -rpath @executable_path \  <-- 🌟 就是這行！
+                        -rpath @executable_path \
                         -rpath /usr/lib/swift
 
 include $(THEOS_MAKE_PATH)/tweak.mk
