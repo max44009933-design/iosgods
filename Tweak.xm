@@ -1,6 +1,16 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
-#import "fishhook.h" // 🌟 引入底層 Hook 庫防護
+
+// 🌟 解決 C 與 C++ (xm) 之間的編譯代溝
+#ifdef __cplusplus
+extern "C" {
+#endif
+#import "fishhook.h"
+#ifdef __cplusplus
+}
+#endif
+
+// 下面的代碼完全不用動，保持原樣...
 
 // ==========================================
 // 🛡️ 不死神盾：沒收遊戲的自殺權力
