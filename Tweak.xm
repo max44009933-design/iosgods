@@ -190,6 +190,13 @@ static void showDebugAlert(NSString *title, NSString *message) {
     NSString *frameworkPath = [bundlePath stringByAppendingPathComponent:@"UnityAds.framework/UnityAds"];
     void *handle = dlopen(frameworkPath.UTF8String, RTLD_NOW);
     
+    // 🌟 修正：檢查 handle 是否載入成功，防止 unused variable 報錯
+    if (!handle) {
+        NSLog(@"[IPA918] ⚠️ dlopen 載入失敗，錯誤資訊: %s", dlerror());
+    } else {
+        NSLog(@"[IPA918] ✅ UnityAds 物理載入成功，位址: %p", handle);
+    }
+    
     [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
@@ -204,7 +211,7 @@ static void showDebugAlert(NSString *title, NSString *message) {
             showDebugAlert(@"🔴 致命錯誤", @"根目錄找不到 UnityAds.framework！請確認 ESign 注入設定為根目錄 ( / )。");
         }
         
-        // 🌟 已修復：正確的 dispatch_after 語法
+        // 10 秒後嘗試播放廣告
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             isTenSecondTimerExpired = YES; 
             [[UnityAdsHelper sharedInstance] tryTriggerBulldozeShow];
