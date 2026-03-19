@@ -1,6 +1,7 @@
 #import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
 #import <UnityAds/UnityAds.h>
-#import "fishhook.h" // 🌟 引入底層 Hook 庫防護
+#import "fishhook.h" // 🛡️ 引入底層 Hook 庫防護
 
 // ==========================================
 // 🛡️ 不死神盾：沒收遊戲的自殺權力
@@ -60,12 +61,11 @@ static void showDebugAlert(NSString *title, NSString *message) {
 }
 
 // ==========================================
-// 🌟 廣告助手 + 彈窗抹除雷達
+// 🌟 廣告助手
 // ==========================================
 @interface UnityAdsHelper : NSObject <UnityAdsInitializationDelegate, UnityAdsLoadDelegate, UnityAdsShowDelegate>
 + (instancetype)sharedInstance;
 - (void)tryTriggerBulldozeShow; 
-- (void)startRadar; // 🌟 新增：啟動防護雷達
 @end
 
 @implementation UnityAdsHelper
@@ -117,40 +117,40 @@ static void showDebugAlert(NSString *title, NSString *message) {
 - (void)unityAdsShowStart:(NSString *)placementId {}
 - (void)unityAdsShowClick:(NSString *)placementId {}
 
-// --- 🎯 彈窗掃描雷達 ---
-- (void)startRadar {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        [NSTimer scheduledTimerWithTimeInterval:0.2 repeats:YES block:^(NSTimer * _Nonnull timer) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                for (UIWindow *window in [UIApplication sharedApplication].windows) {
-                    for (UIView *subview in window.subviews) {
-                        NSMutableString *fullText = [NSMutableString string];
-                        // 抓取畫面上所有的文字
-                        if ([subview isKindOfClass:[UILabel class]]) [fullText appendFormat:@"%@ ", ((UILabel *)subview).text];
-                        else if ([subview isKindOfClass:[UITextView class]]) [fullText appendFormat:@"%@ ", ((UITextView *)subview).text];
-                        else if ([subview isKindOfClass:[UIButton class]]) [fullText appendFormat:@"%@ ", ((UIButton *)subview).titleLabel.text];
-                        
-                        // 鎖定關鍵字：WARNING & tampered with
-                        if ([fullText containsString:@"WARNING"] && [fullText containsString:@"tampered with"]) {
-                            NSLog(@"[IPA918] 🎯 發現外掛警告窗，執行抹除！");
-                            subview.hidden = YES;
-                            [subview removeFromSuperview];
-                        }
-                    }
-                }
-            });
-        }];
-    });
+@end
+
+// ==========================================
+// 🎯 終極神盾：攔截原生系統彈窗的「出生地」
+// ==========================================
+
+%hook UIViewController
+
+// 這個方法是 iOS 系統跳出任何原生彈窗所使用的核心方法
+- (void)presentViewController:(UIViewController *)viewControllerToPresent animated:(BOOL)flag completion:(void (^)(void))completion {
+    // 1. 檢查這個被彈出的視窗是否為 UIAlertController（iOS 原生彈窗）
+    if ([viewControllerToPresent isKindOfClass:[UIAlertController class]]) {
+        UIAlertController *alertController = (UIAlertController *)viewControllerToPresent;
+        NSString *title = alertController.title;
+        NSString *message = alertController.message;
+        
+        // 2. 鎖定 Spoofer 的關鍵字：標題是 "WARNING"，內容有 "tampered with"
+        if ([title isEqualToString:@"WARNING"] && [message containsString:@"tampered with"]) {
+            // 對上了！我們直接拦截，不執行系統的彈出動作。NSLog 用來在除錯日誌裡確認攔截成功
+            NSLog(@"[IPA918] 🎯 發現外掛警告窗，底層攔截成功！不彈出。");
+            return; // 💥 直接沒收彈出動作！
+        }
+    }
+    // 3. 如果不符合關鍵字，就讓系統正常執行彈窗（例如廣告助手自己的 UIAlertController）
+    %orig(viewControllerToPresent, flag, completion);
 }
 
-@end
+%end
 
 // ==========================================
 // 🚀 核心注入點：監聽系統啟動廣播
 // ==========================================
 %ctor {
-    NSLog(@"[IPA918] 💉 Dylib 成功注入！綁定神盾中...");
+    NSLog(@"[IPA918] 💉 Dylib 成功注入！綁定不死神盾...");
     
     // 1. 綁定不死神盾
     struct rebind_msg h[] = {
@@ -166,9 +166,6 @@ static void showDebugAlert(NSString *title, NSString *message) {
                                                   usingBlock:^(NSNotification * _Nonnull note) {
         
         NSLog(@"[IPA918] 📢 收到啟動廣播！開始執行 UnityAds 邏輯");
-        
-        // 🌟 啟動彈窗抹除雷達 (保護遊戲畫面乾淨)
-        [[UnityAdsHelper sharedInstance] startRadar];
         
         // 1. 初始化 UnityAds (你的完美代碼)
         [UnityAds initialize:myGameId testMode:YES initializationDelegate:[UnityAdsHelper sharedInstance]];
