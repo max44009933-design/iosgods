@@ -7,7 +7,7 @@
 // ==========================================
 // ⚠️ 記得換成你新專案的 Game ID 和 廣告單元 ID
 NSString *const myGameId = @"6069216";    
-NSString *const myAdUnitId = @"iosapp"; 
+NSString *const myAdUnitId = @"test0318"; 
 
 static BOOL isTimerExpired = NO;
 static BOOL isAdReadyToShow = NO;
@@ -114,9 +114,9 @@ static UIViewController *getTopViewController() {
         
         NSLog(@"[IPA918] 📢 啟動廣播到達！");
         
-        // 🌟 防卡死機制：讓大型 App 先載入 7 秒鐘喘口氣，再來初始化 UnityAds！
+        // 🌟 防卡死機制：讓 App 先專心開機 7 秒鐘！
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            NSLog(@"[IPA918] ⏳ 遊戲暖機完畢，開始初始化 UnityAds！");
+            NSLog(@"[IPA918] ⏳ 7秒遊戲暖機完畢，開始初始化並下載 UnityAds 廣告！");
             [UnityAds initialize:myGameId testMode:NO initializationDelegate:[UnityAdsHelper sharedInstance]];
         });
         
@@ -126,7 +126,7 @@ static UIViewController *getTopViewController() {
             if (isAdReadyToShow) {
                 [[UnityAdsHelper sharedInstance] tryTriggerBulldozeShow];
             } else {
-                NSLog(@"[IPA918] ⏳ 10秒到了但廣告還沒抓到，等它下載好會自動補放。");
+                NSLog(@"[IPA918] ⏳ 10秒到了但廣告還沒下載完，等它準備好會自動補放。");
             }
         });
         
