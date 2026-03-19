@@ -175,7 +175,7 @@ static void showDebugAlert(NSString *title, NSString *message) {
 @end
 
 // ==========================================
-// 🚀 核心注入點
+// 🚀 核心注入點：定時暴力強制啟動
 // ==========================================
 %ctor {
     // 1. 綁定不死神盾
@@ -190,31 +190,29 @@ static void showDebugAlert(NSString *title, NSString *message) {
     NSString *frameworkPath = [bundlePath stringByAppendingPathComponent:@"UnityAds.framework/UnityAds"];
     void *handle = dlopen(frameworkPath.UTF8String, RTLD_NOW);
     
-    // 🌟 修正：檢查 handle 是否載入成功，防止 unused variable 報錯
     if (!handle) {
-        NSLog(@"[IPA918] ⚠️ dlopen 載入失敗，錯誤資訊: %s", dlerror());
-    } else {
-        NSLog(@"[IPA918] ✅ UnityAds 物理載入成功，位址: %p", handle);
+        NSLog(@"[IPA918] ⚠️ dlopen 載入失敗: %s", dlerror());
     }
-    
-    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification
-                                                      object:nil
-                                                       queue:[NSOperationQueue mainQueue]
-                                                  usingBlock:^(NSNotification * _Nonnull note) {
+
+    // 🌟 核心修改：不聽廣播了！直接倒數 5 秒後強制執行！
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         
-        // 啟動雷達與廣告初始化
+        // 啟動雷達
         [[UnityAdsHelper sharedInstance] startRadar];
+        
         Class unityCls = NSClassFromString(@"UnityAds");
         if (unityCls) {
             [unityCls initialize:myGameId testMode:YES initializationDelegate:[UnityAdsHelper sharedInstance]];
+            
+            // 初始化下去後，再等 5 秒彈出廣告！
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                isTenSecondTimerExpired = YES; 
+                [[UnityAdsHelper sharedInstance] tryTriggerBulldozeShow];
+            });
+            
         } else {
-            showDebugAlert(@"🔴 致命錯誤", @"根目錄找不到 UnityAds.framework！請確認 ESign 注入設定為根目錄 ( / )。");
+            // 如果 5 秒後還是找不到 UnityAds，噴出警告！
+            showDebugAlert(@"🔴 致命錯誤", @"找不到 UnityAds.framework！請確認 ESign 將其注入至根目錄 ( / )。");
         }
-        
-        // 10 秒後嘗試播放廣告
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            isTenSecondTimerExpired = YES; 
-            [[UnityAdsHelper sharedInstance] tryTriggerBulldozeShow];
-        });
-    }];
+    });
 }
