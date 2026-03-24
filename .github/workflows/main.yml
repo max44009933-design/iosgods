@@ -45,4 +45,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: UnityAds_Compiled_Dylib
-          path: .theos/obj/debug/*.dylib
+          # 🌟 終極保險：使用 ** 萬用字元，確保不管 dylib 產在 debug 還是 arm64 目錄下都能精準抓到！
+          path: .theos/obj/**/*.dylib
