@@ -6,8 +6,8 @@
 // 🔴 配置區 (一般 APP 正式廣告版)
 // ==========================================
 // ⚠️ 記得換成你新專案的 Game ID 和 廣告單元 ID
-NSString *const myGameId = @"6069216";    
-NSString *const myAdUnitId = @"test0318"; 
+NSString *const myGameId = @"5698859";    
+NSString *const myAdUnitId = @"Rewarded_iOS"; 
 NSString *const myInterstitialId = @"Interstitial_iOS"; // 🌟 新增：返回時的插頁廣告版位
 
 static BOOL isTimerExpired = NO;
