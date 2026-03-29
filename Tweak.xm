@@ -1,26 +1,25 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #import <StartApp/StartApp.h> 
+#import <AppTrackingTransparency/AppTrackingTransparency.h> // 🌟 必備：追蹤授權
+#import <AdSupport/AdSupport.h>
 
 // ==========================================
 // 🔴 配置區 (Start.io 專用)
 // ==========================================
 NSString *const myStartAppId = @"202921894";  
 
-// 🌟 開發者測試開關：現在是 1800 秒 (30分鐘)。你可以暫時改成 30 來快速測試邏輯！
-#define COOLDOWN_TIME 1800 
+// 🌟 為了方便你現在測試真實廣告，我先改成 10 秒冷卻！(上線前再改回 1800)
+#define COOLDOWN_TIME 10 
 
 static BOOL isTimerExpired = NO;
-static BOOL isAdReadyToShow = NO; // 追蹤開局廣告是否準備好
-static BOOL isInterstitialReady = NO; // 追蹤返回插頁廣告
+static BOOL isAdReadyToShow = NO; 
+static BOOL isInterstitialReady = NO; 
 static BOOL hasPlayedStartupAd = NO; 
 
-// ==========================================
-// 🌟 Start.io 廣告助手
-// ==========================================
 @interface StartAppHelper : NSObject <STADelegateProtocol>
-@property (nonatomic, strong) STAStartAppAd *startupAd; // 開局【一般插頁】(為了提高真實廣告填充率而降級)
-@property (nonatomic, strong) STAStartAppAd *returnAd;  // 返回【一般插頁】
+@property (nonatomic, strong) STAStartAppAd *startupAd; 
+@property (nonatomic, strong) STAStartAppAd *returnAd;  
 + (instancetype)sharedInstance;
 - (void)tryTriggerBulldozeShow; 
 - (void)tryShowReturnInterstitial; 
@@ -37,35 +36,26 @@ static BOOL hasPlayedStartupAd = NO;
     return sharedInstance;
 }
 
-// --- 🌟 30分鐘新手保護期 + 30分鐘冷卻時間邏輯 ---
+// --- 🌟 30秒新手保護期 (測試用) ---
 - (BOOL)canShowReturnInterstitial {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     double currentTime = [[NSDate date] timeIntervalSince1970];
     
-    // 1. 檢查是否是第一次打開 APP？如果是，記錄當下時間
     double firstLaunchTime = [defaults doubleForKey:@"IPA918_FirstLaunchTime"];
     if (firstLaunchTime == 0) {
-        NSLog(@"[IPA918] 🆕 第一次打開 APP！啟動 %d 秒「免廣告新手保護期」！", COOLDOWN_TIME);
         [defaults setDouble:currentTime forKey:@"IPA918_FirstLaunchTime"];
         [defaults synchronize];
-        return NO; // 剛打開，絕對不能播
+        return NO; 
     }
     
-    // 2. 檢查是否已經度過保護期？
     if (currentTime - firstLaunchTime < COOLDOWN_TIME) {
-        int remaining = (COOLDOWN_TIME - (currentTime - firstLaunchTime));
-        NSLog(@"[IPA918] 🛡️ 新手保護期中，切換 APP 也不播廣告... 剩餘約 %d 秒", remaining);
         return NO;
     }
     
-    // 3. 檢查一般冷卻時間：距離上次播「返回廣告」有沒有超過設定時間？
     double lastShowTime = [defaults doubleForKey:@"IPA918_LastReturnAdTime"];
     if (currentTime - lastShowTime >= COOLDOWN_TIME) {
-        return YES; // 超過了，可以播！
+        return YES; 
     }
-    
-    int remainingSecs = (COOLDOWN_TIME - (currentTime - lastShowTime));
-    NSLog(@"[IPA918] ⏳ 返回廣告冷卻中... 剩餘約 %d 秒", remainingSecs);
     return NO;
 }
 
@@ -78,25 +68,22 @@ static BOOL hasPlayedStartupAd = NO;
 
 // --- 🚀 初始化與廣告載入 ---
 - (void)initializeStartApp {
-    NSLog(@"[IPA918] 🚀 開始初始化 Start.io SDK...");
+    NSLog(@"[IPA918] 🚀 開始初始化真實廣告模式...");
     STAStartAppSDK *sdk = [STAStartAppSDK sharedInstance];
     sdk.appID = myStartAppId;
     
-    // 🌟 如果要上線賺真錢，請保持這行註解！(如果想重新確認畫面，請把前面的 // 刪掉)
-    // sdk.testAdsEnabled = YES; 
+    // 🌟 強制關閉測試模式，迎接真實廣告！
+    sdk.testAdsEnabled = NO; 
     
-    // 🌟 關鍵修改：開局廣告降級為「一般插頁廣告」，大幅降低被伺服器拒絕派發的機率！
     self.startupAd = [[STAStartAppAd alloc] init];
     [self.startupAd loadAdWithDelegate:self];
     
-    // 預載返回廣告：一般插頁廣告
     self.returnAd = [[STAStartAppAd alloc] init];
     [self.returnAd loadAdWithDelegate:self];
 }
 
-// 廣告載入成功
 - (void)didLoadAd:(STAAbstractAd *)ad {
-    NSLog(@"[IPA918] ✅ 廣告下載完成！");
+    NSLog(@"[IPA918] ✅ 真實廣告下載完成！");
     if (ad == self.startupAd) {
         isAdReadyToShow = YES;
         [self tryTriggerBulldozeShow]; 
@@ -105,55 +92,40 @@ static BOOL hasPlayedStartupAd = NO;
     }
 }
 
-// 廣告載入失敗
 - (void)failedLoadAd:(STAAbstractAd *)ad withError:(NSError *)error {
-    NSLog(@"[IPA918] 🔴 廣告載入失敗: %@", error.localizedDescription);
-    if (ad == self.startupAd) {
-        isAdReadyToShow = NO;
-    } else if (ad == self.returnAd) {
-        isInterstitialReady = NO;
-    }
+    // 🌟 如果還是失敗，看這裡的 Log：如果是 204 代表伺服器還是沒東西給你
+    NSLog(@"[IPA918] 🔴 真實廣告載入失敗: %@", error.localizedDescription);
 }
 
-// 🌟 開局 10 秒觸發：播放插頁廣告
 - (void)tryTriggerBulldozeShow {
     if (isTimerExpired && isAdReadyToShow && !hasPlayedStartupAd) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            NSLog(@"[IPA918] 🎬 條件達成，開始播放 Start.io 開局插頁廣告！");
+            NSLog(@"[IPA918] 🎬 播放開局插頁廣告！");
             hasPlayedStartupAd = YES; 
             [self.startupAd showAd];
         });
     }
 }
 
-// 🌟 返回觸發：檢查保護與冷卻後播放插頁
 - (void)tryShowReturnInterstitial {
     if ([self canShowReturnInterstitial]) {
         if (isInterstitialReady) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                NSLog(@"[IPA918] 🎬 觸發背景返回插頁廣告！");
+                NSLog(@"[IPA918] 🎬 播放返回插頁廣告！");
                 [self.returnAd showAd];
             });
         } else {
-            NSLog(@"[IPA918] ⏳ 返回廣告還沒 Ready，重新載入中...");
             [self.returnAd loadAdWithDelegate:self];
         }
     }
 }
 
-// 廣告關閉後重新計時
 - (void)didCloseAd:(STAAbstractAd *)ad {
-    NSLog(@"[IPA918] 🚪 廣告已關閉！");
     if (ad == self.returnAd) {
-        NSLog(@"[IPA918] ⏱️ 啟動 %d 秒冷卻機制", COOLDOWN_TIME);
         [self recordInterstitialShowTime];
         isInterstitialReady = NO;
         [self.returnAd loadAdWithDelegate:self];
     }
-}
-
-- (void)failedShowAd:(STAAbstractAd *)ad withError:(NSError *)error {
-    NSLog(@"[IPA918] 🔴 廣告播放失敗: %@", error.localizedDescription);
 }
 
 @end
@@ -162,21 +134,32 @@ static BOOL hasPlayedStartupAd = NO;
 // 🚀 核心注入點
 // ==========================================
 %ctor {
-    NSLog(@"[IPA918] 💉 Dylib 成功注入！等待啟動...");
-    
     [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification * _Nonnull note) {
         
-        // 7 秒遊戲暖機
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            NSLog(@"[IPA918] ⏳ 7秒暖機完畢，初始化 Start.io！");
-            [[StartAppHelper sharedInstance] initializeStartApp];
-        });
-        
-        // 10 秒開局倒數觸發
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        // 🌟 1. 首先彈出「要求追蹤權限」視窗 (iOS 14+ 提高填充率關鍵)
+        if (@available(iOS 14, *)) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [ATTrackingManager requestTrackingAuthorizationWithCompletionHandler:^(ATTrackingManagerAuthorizationStatus status) {
+                    NSLog(@"[IPA918] 🛡️ 追蹤授權狀態: %lu", (unsigned long)status);
+                    
+                    // 🌟 2. 授權結束後 (不論點允許還是拒絕)，再開始初始化廣告
+                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                        [[StartAppHelper sharedInstance] initializeStartApp];
+                    });
+                }];
+            });
+        } else {
+            // iOS 14 以下直接初始化
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [[StartAppHelper sharedInstance] initializeStartApp];
+            });
+        }
+
+        // 🌟 3. 15 秒開局倒數觸發
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(15.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             isTimerExpired = YES; 
             [[StartAppHelper sharedInstance] tryTriggerBulldozeShow];
         });
@@ -186,7 +169,6 @@ static BOOL hasPlayedStartupAd = NO;
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification * _Nonnull note) {
-        NSLog(@"[IPA918] 🔄 玩家從背景返回遊戲！");
         [[StartAppHelper sharedInstance] tryShowReturnInterstitial];
     }];
 }
