@@ -1,16 +1,14 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #import <StartApp/StartApp.h> 
-#import <AppTrackingTransparency/AppTrackingTransparency.h> // 🌟 必備：追蹤授權
-#import <AdSupport/AdSupport.h>
 
 // ==========================================
 // 🔴 配置區 (Start.io 專用)
 // ==========================================
 NSString *const myStartAppId = @"202921894";  
 
-// 🌟 為了方便你現在測試真實廣告，我先改成 10 秒冷卻！(上線前再改回 1800)
-#define COOLDOWN_TIME 10 
+// 🌟 測試用冷卻時間：30 秒 (確認會跳廣告後，再改回 1800)
+#define COOLDOWN_TIME 30 
 
 static BOOL isTimerExpired = NO;
 static BOOL isAdReadyToShow = NO; 
@@ -36,7 +34,7 @@ static BOOL hasPlayedStartupAd = NO;
     return sharedInstance;
 }
 
-// --- 🌟 30秒新手保護期 (測試用) ---
+// --- 🌟 30秒新手保護期 (測試用邏輯) ---
 - (BOOL)canShowReturnInterstitial {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     double currentTime = [[NSDate date] timeIntervalSince1970];
@@ -68,22 +66,24 @@ static BOOL hasPlayedStartupAd = NO;
 
 // --- 🚀 初始化與廣告載入 ---
 - (void)initializeStartApp {
-    NSLog(@"[IPA918] 🚀 開始初始化真實廣告模式...");
+    NSLog(@"[IPA918] 🚀 初始化 Start.io...");
     STAStartAppSDK *sdk = [STAStartAppSDK sharedInstance];
     sdk.appID = myStartAppId;
     
-    // 🌟 強制關閉測試模式，迎接真實廣告！
+    // 🌟 確保關閉測試模式，挑戰真實廣告！
     sdk.testAdsEnabled = NO; 
     
+    // 載入開局插頁
     self.startupAd = [[STAStartAppAd alloc] init];
     [self.startupAd loadAdWithDelegate:self];
     
+    // 預載返回插頁
     self.returnAd = [[STAStartAppAd alloc] init];
     [self.returnAd loadAdWithDelegate:self];
 }
 
 - (void)didLoadAd:(STAAbstractAd *)ad {
-    NSLog(@"[IPA918] ✅ 真實廣告下載完成！");
+    NSLog(@"[IPA918] ✅ 廣告下載完成！");
     if (ad == self.startupAd) {
         isAdReadyToShow = YES;
         [self tryTriggerBulldozeShow]; 
@@ -93,8 +93,7 @@ static BOOL hasPlayedStartupAd = NO;
 }
 
 - (void)failedLoadAd:(STAAbstractAd *)ad withError:(NSError *)error {
-    // 🌟 如果還是失敗，看這裡的 Log：如果是 204 代表伺服器還是沒東西給你
-    NSLog(@"[IPA918] 🔴 真實廣告載入失敗: %@", error.localizedDescription);
+    NSLog(@"[IPA918] 🔴 廣告載入失敗: %@", error.localizedDescription);
 }
 
 - (void)tryTriggerBulldozeShow {
@@ -131,7 +130,7 @@ static BOOL hasPlayedStartupAd = NO;
 @end
 
 // ==========================================
-// 🚀 核心注入點
+// 🚀 核心注入點 (安全暖機模式)
 // ==========================================
 %ctor {
     [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification
@@ -139,26 +138,12 @@ static BOOL hasPlayedStartupAd = NO;
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification * _Nonnull note) {
         
-        // 🌟 1. 首先彈出「要求追蹤權限」視窗 (iOS 14+ 提高填充率關鍵)
-        if (@available(iOS 14, *)) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                [ATTrackingManager requestTrackingAuthorizationWithCompletionHandler:^(ATTrackingManagerAuthorizationStatus status) {
-                    NSLog(@"[IPA918] 🛡️ 追蹤授權狀態: %lu", (unsigned long)status);
-                    
-                    // 🌟 2. 授權結束後 (不論點允許還是拒絕)，再開始初始化廣告
-                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                        [[StartAppHelper sharedInstance] initializeStartApp];
-                    });
-                }];
-            });
-        } else {
-            // iOS 14 以下直接初始化
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                [[StartAppHelper sharedInstance] initializeStartApp];
-            });
-        }
+        // 🌟 打開後 7 秒開始初始化（閃退高風險期已過，安全！）
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [[StartAppHelper sharedInstance] initializeStartApp];
+        });
 
-        // 🌟 3. 15 秒開局倒數觸發
+        // 🌟 15 秒開局觸發
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(15.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             isTimerExpired = YES; 
             [[StartAppHelper sharedInstance] tryTriggerBulldozeShow];
