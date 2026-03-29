@@ -80,7 +80,7 @@ static BOOL hasPlayedStartupAd = NO;
     sdk.appID = myStartAppId;
     
     // 🌟 如果要上線賺真錢，請保持這行註解！(如果還要測試畫面，請把前面的 // 刪掉)
-    sdk.testAdsEnabled = YES; 
+    //sdk.testAdsEnabled = YES; 
     
     // 1. 預載開局廣告：專屬「獎勵影片」
     self.startupAd = [[STAStartAppAd alloc] init];
