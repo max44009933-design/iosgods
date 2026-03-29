@@ -92,8 +92,8 @@ static UIViewController *getTopViewController() {
     STAStartAppSDK *sdk = [STAStartAppSDK sharedInstance];
     sdk.appID = myStartAppId;
     
-    // 🌟 關閉官方預設的返回廣告，交給我們自己寫的 60 分鐘冷卻邏輯控制
-    sdk.returnAdEnabled = NO; 
+    // 🌟 修正點：官方已廢棄此屬性並強制預設為 NO，因此將其註解避免嚴格編譯模式報錯
+    // sdk.returnAdEnabled = NO; 
     
     self.startupAd = [[STAStartAppAd alloc] init];
     self.returnAd = [[STAStartAppAd alloc] init];
