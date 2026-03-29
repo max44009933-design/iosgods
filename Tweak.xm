@@ -1,5 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
+
+
 #import <StartApp/StartApp.h> 
 
 // ==========================================
@@ -78,9 +80,6 @@ static BOOL hasPlayedStartupAd = NO;
     NSLog(@"[IPA918] 🚀 開始初始化 Start.io SDK...");
     STAStartAppSDK *sdk = [STAStartAppSDK sharedInstance];
     sdk.appID = myStartAppId;
-    
-    // 測試模式 (要上線賺真錢時記得把這行砍掉或設為 NO)
-    sdk.testAdsEnabled = YES; 
     
     // 1. 預載開局廣告：專屬「獎勵影片」
     self.startupAd = [[STAStartAppAd alloc] init];
