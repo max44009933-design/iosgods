@@ -1,23 +1,20 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
-#import <StartApp/StartApp.h> // 🌟 記得替換成 StartApp 的標頭檔
+#import <StartApp/StartApp.h> 
 
 // ==========================================
 // 🔴 配置區 (Start.io 專用)
 // ==========================================
-// 🌟 已經幫你填上你截圖裡的 App ID 囉！
 NSString *const myStartAppId = @"202921894";  
 
 static BOOL isTimerExpired = NO;
-static BOOL isAdReadyToShow = NO;
 static BOOL isInterstitialReady = NO; 
-static BOOL hasPlayedStartupAd = NO; // 防止開局廣告重複播放的安全鎖
+static BOOL hasPlayedStartupAd = NO; 
 
 // ==========================================
 // 🌟 Start.io 廣告助手
 // ==========================================
 @interface StartAppHelper : NSObject <STADelegateProtocol>
-@property (nonatomic, strong) STAStartAppAd *startupAd; // 開局獎勵廣告
 @property (nonatomic, strong) STAStartAppAd *returnAd;  // 返回插頁廣告
 + (instancetype)sharedInstance;
 - (void)tryTriggerBulldozeShow; 
@@ -35,13 +32,13 @@ static BOOL hasPlayedStartupAd = NO; // 防止開局廣告重複播放的安全�
     return sharedInstance;
 }
 
-// --- 🌟 冷卻時間檢查邏輯 ---
+// --- 🌟 60分鐘冷卻時間檢查邏輯 ---
 - (BOOL)canShowReturnInterstitial {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     double lastShowTime = [defaults doubleForKey:@"IPA918_LastReturnAdTime"];
     double currentTime = [[NSDate date] timeIntervalSince1970];
     
-    // 60 分鐘 = 3600 秒
+    // 3600 秒 = 60 分鐘
     if (currentTime - lastShowTime >= 3600) {
         return YES;
     }
@@ -58,82 +55,69 @@ static BOOL hasPlayedStartupAd = NO; // 防止開局廣告重複播放的安全�
     [defaults synchronize];
 }
 
-// --- Start.io 廣告邏輯 ---
+// --- 🚀 初始化與廣告載入 ---
 - (void)initializeStartApp {
     NSLog(@"[IPA918] 🚀 開始初始化 Start.io SDK...");
     STAStartAppSDK *sdk = [STAStartAppSDK sharedInstance];
     sdk.appID = myStartAppId;
     
-    // 🌟 修正點：官方已廢棄此屬性並強制預設為 NO，因此將其註解避免嚴格編譯模式報錯
-    // sdk.returnAdEnabled = NO; 
+    // 🌟 測試模式先開著，確定有畫面再關掉賺真錢！
+    sdk.testAdsEnabled = YES; 
     
-    self.startupAd = [[STAStartAppAd alloc] init];
+    // 預載返回用的插頁廣告
     self.returnAd = [[STAStartAppAd alloc] init];
-    
-    // 🌟 預載廣告：開局載入獎勵影片，返回載入一般插頁
-    [self.startupAd loadRewardedVideoAdWithDelegate:self];
     [self.returnAd loadAdWithDelegate:self];
 }
 
-// 廣告載入成功 Callback
+// 廣告載入成功
 - (void)didLoadAd:(STAAbstractAd *)ad {
     NSLog(@"[IPA918] ✅ 廣告下載完成！");
-    if (ad == self.startupAd) {
-        isAdReadyToShow = YES;
-        [self tryTriggerBulldozeShow]; // 嘗試觸發 10 秒開局廣告
-    } else if (ad == self.returnAd) {
-        isInterstitialReady = YES; // 記錄插頁廣告已就緒
+    if (ad == self.returnAd) {
+        isInterstitialReady = YES;
     }
 }
 
-// 廣告載入失敗 Callback
+// 廣告載入失敗
 - (void)failedLoadAd:(STAAbstractAd *)ad withError:(NSError *)error {
     NSLog(@"[IPA918] 🔴 廣告載入失敗: %@", error.localizedDescription);
-    if (ad == self.startupAd) {
-        isAdReadyToShow = NO;
-    } else if (ad == self.returnAd) {
+    if (ad == self.returnAd) {
         isInterstitialReady = NO;
     }
 }
 
-// 開局 10 秒廣告邏輯
+// 🌟 開局 10 秒廣告：改用官方最強推的 Splash Ad！
 - (void)tryTriggerBulldozeShow {
-    if (isTimerExpired && isAdReadyToShow && !hasPlayedStartupAd) {
+    if (isTimerExpired && !hasPlayedStartupAd) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            NSLog(@"[IPA918] 🎬 條件達成，開始播放 Start.io 開局廣告！");
-            hasPlayedStartupAd = YES; // 鎖上，避免重複播放
-            [self.startupAd showAd];
+            NSLog(@"[IPA918] 🎬 條件達成，呼叫 Start.io 霸道開局廣告！");
+            hasPlayedStartupAd = YES; 
+            [[STAStartAppSDK sharedInstance] showSplashAd];
         });
     }
 }
 
-// 返回插頁廣告邏輯
+// 🌟 返回插頁廣告：套用你的專屬冷卻邏輯
 - (void)tryShowReturnInterstitial {
-    // 1. 檢查 60 分鐘冷卻期
     if ([self canShowReturnInterstitial]) {
-        // 2. 檢查插頁廣告載好了沒
         if (isInterstitialReady) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                NSLog(@"[IPA918] 🎬 觸發 Start.io 背景返回插頁廣告！");
+                NSLog(@"[IPA918] 🎬 觸發背景返回插頁廣告！");
                 [self.returnAd showAd];
             });
         } else {
-            NSLog(@"[IPA918] ⏳ 返回廣告尚未 Ready，嘗試重新載入...");
+            NSLog(@"[IPA918] ⏳ 返回廣告還沒 Ready，重新載入中...");
             [self.returnAd loadAdWithDelegate:self];
         }
     }
 }
 
-// 廣告關閉 Callback (玩家看完或點擊 X 關閉)
+// 廣告關閉後重新計時
 - (void)didCloseAd:(STAAbstractAd *)ad {
     NSLog(@"[IPA918] 💰 廣告已關閉！");
-    
-    // 如果關閉的是返回廣告，紀錄時間並重新載入下一檔
     if (ad == self.returnAd) {
-        NSLog(@"[IPA918] ⏱️ 記錄播放時間，啟動 60 分鐘冷卻機制");
+        NSLog(@"[IPA918] ⏱️ 啟動 60 分鐘冷卻機制");
         [self recordInterstitialShowTime];
         isInterstitialReady = NO;
-        // 把下一檔廣告提早載下來備用
         [self.returnAd loadAdWithDelegate:self];
     }
 }
@@ -145,7 +129,7 @@ static BOOL hasPlayedStartupAd = NO; // 防止開局廣告重複播放的安全�
 @end
 
 // ==========================================
-// 🚀 核心注入點
+// 🚀 核心注入點 (保留所有暖機與倒數功能)
 // ==========================================
 %ctor {
     NSLog(@"[IPA918] 💉 Dylib 成功注入！等待啟動...");
@@ -156,24 +140,17 @@ static BOOL hasPlayedStartupAd = NO; // 防止開局廣告重複播放的安全�
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification * _Nonnull note) {
         
-        NSLog(@"[IPA918] 📢 啟動廣播到達！");
-        
-        // 🌟 防卡死機制：讓 App 先專心開機 7 秒鐘！
+        // 🌟 7 秒遊戲暖機
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            NSLog(@"[IPA918] ⏳ 7秒遊戲暖機完畢，開始初始化並下載 Start.io 廣告！");
+            NSLog(@"[IPA918] ⏳ 7秒暖機完畢，初始化 Start.io！");
             [[StartAppHelper sharedInstance] initializeStartApp];
         });
         
-        // 🌟 10 秒倒數播放 (從 App 打開那一刻算起)
+        // 🌟 10 秒開局倒數觸發
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             isTimerExpired = YES; 
-            if (isAdReadyToShow) {
-                [[StartAppHelper sharedInstance] tryTriggerBulldozeShow];
-            } else {
-                NSLog(@"[IPA918] ⏳ 10秒到了但廣告還沒下載完，等它準備好會自動補放。");
-            }
+            [[StartAppHelper sharedInstance] tryTriggerBulldozeShow];
         });
-        
     }];
     
     // 2. 監聽 App 從背景切換回前景
