@@ -8,6 +8,7 @@
 NSString *const myStartAppId = @"202921894";  
 
 static BOOL isTimerExpired = NO;
+static BOOL isAdReadyToShow = NO; // 🌟 復活：追蹤開局廣告是否準備好
 static BOOL isInterstitialReady = NO; 
 static BOOL hasPlayedStartupAd = NO; 
 
@@ -15,6 +16,7 @@ static BOOL hasPlayedStartupAd = NO;
 // 🌟 Start.io 廣告助手
 // ==========================================
 @interface StartAppHelper : NSObject <STADelegateProtocol>
+@property (nonatomic, strong) STAStartAppAd *startupAd; // 🌟 復活：開局專用廣告
 @property (nonatomic, strong) STAStartAppAd *returnAd;  // 返回插頁廣告
 + (instancetype)sharedInstance;
 - (void)tryTriggerBulldozeShow; 
@@ -64,7 +66,10 @@ static BOOL hasPlayedStartupAd = NO;
     // 🌟 測試模式先開著，確定有畫面再關掉賺真錢！
     sdk.testAdsEnabled = YES; 
     
-    // 預載返回用的插頁廣告
+    // 🌟 復活：同時預載「開局廣告」與「返回廣告」
+    self.startupAd = [[STAStartAppAd alloc] init];
+    [self.startupAd loadAdWithDelegate:self];
+    
     self.returnAd = [[STAStartAppAd alloc] init];
     [self.returnAd loadAdWithDelegate:self];
 }
@@ -72,7 +77,10 @@ static BOOL hasPlayedStartupAd = NO;
 // 廣告載入成功
 - (void)didLoadAd:(STAAbstractAd *)ad {
     NSLog(@"[IPA918] ✅ 廣告下載完成！");
-    if (ad == self.returnAd) {
+    if (ad == self.startupAd) {
+        isAdReadyToShow = YES;
+        [self tryTriggerBulldozeShow]; // 下載完剛好倒數也到了的話就直接播
+    } else if (ad == self.returnAd) {
         isInterstitialReady = YES;
     }
 }
@@ -80,18 +88,20 @@ static BOOL hasPlayedStartupAd = NO;
 // 廣告載入失敗
 - (void)failedLoadAd:(STAAbstractAd *)ad withError:(NSError *)error {
     NSLog(@"[IPA918] 🔴 廣告載入失敗: %@", error.localizedDescription);
-    if (ad == self.returnAd) {
+    if (ad == self.startupAd) {
+        isAdReadyToShow = NO;
+    } else if (ad == self.returnAd) {
         isInterstitialReady = NO;
     }
 }
 
-// 🌟 開局 10 秒廣告：改用官方最強推的 Splash Ad！
+// 🌟 開局 10 秒廣告：回歸最穩定的一般插頁播法
 - (void)tryTriggerBulldozeShow {
-    if (isTimerExpired && !hasPlayedStartupAd) {
+    if (isTimerExpired && isAdReadyToShow && !hasPlayedStartupAd) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            NSLog(@"[IPA918] 🎬 條件達成，呼叫 Start.io 霸道開局廣告！");
+            NSLog(@"[IPA918] 🎬 條件達成，開始播放 Start.io 開局插頁廣告！");
             hasPlayedStartupAd = YES; 
-            [[STAStartAppSDK sharedInstance] showSplashAd];
+            [self.startupAd showAd];
         });
     }
 }
