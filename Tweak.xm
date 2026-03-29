@@ -14,34 +14,6 @@ static BOOL isInterstitialReady = NO;
 static BOOL hasPlayedStartupAd = NO; // 防止開局廣告重複播放的安全鎖
 
 // ==========================================
-// 🛠️ 抓取頂層畫面神器 (播放廣告必備)
-// ==========================================
-static UIViewController *getTopViewController() {
-    UIWindow *keyWindow = nil;
-    if (@available(iOS 13.0, *)) {
-        for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
-            if (scene.activationState == UISceneActivationStateForegroundActive) {
-                for (UIWindow *window in scene.windows) {
-                    if (window.isKeyWindow) {
-                        keyWindow = window;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    if (!keyWindow) {
-        keyWindow = [[UIApplication sharedApplication] windows].firstObject;
-    }
-    
-    UIViewController *topController = keyWindow.rootViewController;
-    while (topController.presentedViewController) {
-        topController = topController.presentedViewController;
-    }
-    return topController;
-}
-
-// ==========================================
 // 🌟 Start.io 廣告助手
 // ==========================================
 @interface StartAppHelper : NSObject <STADelegateProtocol>
