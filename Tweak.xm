@@ -5,7 +5,7 @@
 // ==========================================
 // 🔴 配置區 (Start.io 專用)
 // ==========================================
-NSString *const myStartAppId = @"202921894";  
+NSString *const myStartAppId = @"205271531";  
 
 static BOOL isTimerExpired = NO;
 static BOOL isAdReadyToShow = NO; // 追蹤開局獎勵廣告是否準備好
