@@ -63,8 +63,6 @@ static BOOL hasPlayedStartupAd = NO;
     STAStartAppSDK *sdk = [STAStartAppSDK sharedInstance];
     sdk.appID = myStartAppId;
     
-    // 🌟 測試模式先開著，確定有畫面再關掉賺真錢！
-    sdk.testAdsEnabled = YES; 
     
     // 🌟 復活：同時預載「開局廣告」與「返回廣告」
     self.startupAd = [[STAStartAppAd alloc] init];
