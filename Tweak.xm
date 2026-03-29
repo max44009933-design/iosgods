@@ -1,7 +1,5 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
-
-
 #import <StartApp/StartApp.h> 
 
 // ==========================================
@@ -81,6 +79,9 @@ static BOOL hasPlayedStartupAd = NO;
     STAStartAppSDK *sdk = [STAStartAppSDK sharedInstance];
     sdk.appID = myStartAppId;
     
+    // 🌟 如果要上線賺真錢，請保持這行註解！(如果還要測試畫面，請把前面的 // 刪掉)
+    // sdk.testAdsEnabled = YES; 
+    
     // 1. 預載開局廣告：專屬「獎勵影片」
     self.startupAd = [[STAStartAppAd alloc] init];
     [self.startupAd loadRewardedVideoAdWithDelegate:self];
@@ -142,7 +143,7 @@ static BOOL hasPlayedStartupAd = NO;
 // ==========================================
 - (void)didCompleteVideo:(STAAbstractAd *)ad {
     NSLog(@"[IPA918] 🏆 太神啦！玩家把獎勵影片看完了！");
-    // 👉 可以在這裡發送獎勵
+    // 👉 你可以在這裡寫下發送獎勵的代碼！
 }
 
 // 廣告關閉後重新計時
