@@ -5,10 +5,13 @@
 // ==========================================
 // 🔴 配置區 (Start.io 專用)
 // ==========================================
-NSString *const myStartAppId = @"205271531";  
+NSString *const myStartAppId = @"202921894";  
+
+// 🌟 開發者測試開關：現在是 1800 秒 (30分鐘)。你可以暫時改成 30 來快速測試邏輯！
+#define COOLDOWN_TIME 1800 
 
 static BOOL isTimerExpired = NO;
-static BOOL isAdReadyToShow = NO; // 追蹤開局獎勵廣告是否準備好
+static BOOL isAdReadyToShow = NO; // 追蹤開局廣告是否準備好
 static BOOL isInterstitialReady = NO; // 追蹤返回插頁廣告
 static BOOL hasPlayedStartupAd = NO; 
 
@@ -16,7 +19,7 @@ static BOOL hasPlayedStartupAd = NO;
 // 🌟 Start.io 廣告助手
 // ==========================================
 @interface StartAppHelper : NSObject <STADelegateProtocol>
-@property (nonatomic, strong) STAStartAppAd *startupAd; // 開局【獎勵影片】
+@property (nonatomic, strong) STAStartAppAd *startupAd; // 開局【一般插頁】(為了提高真實廣告填充率而降級)
 @property (nonatomic, strong) STAStartAppAd *returnAd;  // 返回【一般插頁】
 + (instancetype)sharedInstance;
 - (void)tryTriggerBulldozeShow; 
@@ -34,7 +37,7 @@ static BOOL hasPlayedStartupAd = NO;
     return sharedInstance;
 }
 
-// --- 🌟 全新：30分鐘新手保護期 + 30分鐘冷卻時間邏輯 ---
+// --- 🌟 30分鐘新手保護期 + 30分鐘冷卻時間邏輯 ---
 - (BOOL)canShowReturnInterstitial {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     double currentTime = [[NSDate date] timeIntervalSince1970];
@@ -42,27 +45,27 @@ static BOOL hasPlayedStartupAd = NO;
     // 1. 檢查是否是第一次打開 APP？如果是，記錄當下時間
     double firstLaunchTime = [defaults doubleForKey:@"IPA918_FirstLaunchTime"];
     if (firstLaunchTime == 0) {
-        NSLog(@"[IPA918] 🆕 第一次打開 APP！啟動 30 分鐘「免廣告新手保護期」！");
+        NSLog(@"[IPA918] 🆕 第一次打開 APP！啟動 %d 秒「免廣告新手保護期」！", COOLDOWN_TIME);
         [defaults setDouble:currentTime forKey:@"IPA918_FirstLaunchTime"];
         [defaults synchronize];
         return NO; // 剛打開，絕對不能播
     }
     
-    // 2. 檢查是否已經度過「首次打開後的 30 分鐘 (1800秒)」保護期？
-    if (currentTime - firstLaunchTime < 1800) {
-        int remaining = (1800 - (currentTime - firstLaunchTime)) / 60;
-        NSLog(@"[IPA918] 🛡️ 新手保護期中，切換 APP 也不播廣告... 剩餘約 %d 分鐘", remaining);
+    // 2. 檢查是否已經度過保護期？
+    if (currentTime - firstLaunchTime < COOLDOWN_TIME) {
+        int remaining = (COOLDOWN_TIME - (currentTime - firstLaunchTime));
+        NSLog(@"[IPA918] 🛡️ 新手保護期中，切換 APP 也不播廣告... 剩餘約 %d 秒", remaining);
         return NO;
     }
     
-    // 3. 檢查一般冷卻時間：距離上次播「返回廣告」有沒有超過 30 分鐘？
+    // 3. 檢查一般冷卻時間：距離上次播「返回廣告」有沒有超過設定時間？
     double lastShowTime = [defaults doubleForKey:@"IPA918_LastReturnAdTime"];
-    if (currentTime - lastShowTime >= 1800) {
-        return YES; // 超過 30 分鐘了，可以播！
+    if (currentTime - lastShowTime >= COOLDOWN_TIME) {
+        return YES; // 超過了，可以播！
     }
     
-    int remainingMins = (1800 - (currentTime - lastShowTime)) / 60;
-    NSLog(@"[IPA918] ⏳ 返回廣告冷卻中... 剩餘約 %d 分鐘", remainingMins);
+    int remainingSecs = (COOLDOWN_TIME - (currentTime - lastShowTime));
+    NSLog(@"[IPA918] ⏳ 返回廣告冷卻中... 剩餘約 %d 秒", remainingSecs);
     return NO;
 }
 
@@ -79,14 +82,14 @@ static BOOL hasPlayedStartupAd = NO;
     STAStartAppSDK *sdk = [STAStartAppSDK sharedInstance];
     sdk.appID = myStartAppId;
     
-    // 🌟 如果要上線賺真錢，請保持這行註解！(如果還要測試畫面，請把前面的 // 刪掉)
-    //sdk.testAdsEnabled = YES; 
+    // 🌟 如果要上線賺真錢，請保持這行註解！(如果想重新確認畫面，請把前面的 // 刪掉)
+    // sdk.testAdsEnabled = YES; 
     
-    // 1. 預載開局廣告：專屬「獎勵影片」
+    // 🌟 關鍵修改：開局廣告降級為「一般插頁廣告」，大幅降低被伺服器拒絕派發的機率！
     self.startupAd = [[STAStartAppAd alloc] init];
-    [self.startupAd loadRewardedVideoAdWithDelegate:self];
+    [self.startupAd loadAdWithDelegate:self];
     
-    // 2. 預載返回廣告：一般插頁廣告
+    // 預載返回廣告：一般插頁廣告
     self.returnAd = [[STAStartAppAd alloc] init];
     [self.returnAd loadAdWithDelegate:self];
 }
@@ -112,18 +115,18 @@ static BOOL hasPlayedStartupAd = NO;
     }
 }
 
-// 🌟 開局 10 秒觸發：播放獎勵影片
+// 🌟 開局 10 秒觸發：播放插頁廣告
 - (void)tryTriggerBulldozeShow {
     if (isTimerExpired && isAdReadyToShow && !hasPlayedStartupAd) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            NSLog(@"[IPA918] 🎬 條件達成，開始播放 Start.io 開局獎勵影片！");
+            NSLog(@"[IPA918] 🎬 條件達成，開始播放 Start.io 開局插頁廣告！");
             hasPlayedStartupAd = YES; 
             [self.startupAd showAd];
         });
     }
 }
 
-// 🌟 返回觸發：檢查 30 分鐘保護與冷卻後播放插頁
+// 🌟 返回觸發：檢查保護與冷卻後播放插頁
 - (void)tryShowReturnInterstitial {
     if ([self canShowReturnInterstitial]) {
         if (isInterstitialReady) {
@@ -138,19 +141,11 @@ static BOOL hasPlayedStartupAd = NO;
     }
 }
 
-// ==========================================
-// 🎁 獎勵影片專屬 Callback
-// ==========================================
-- (void)didCompleteVideo:(STAAbstractAd *)ad {
-    NSLog(@"[IPA918] 🏆 太神啦！玩家把獎勵影片看完了！");
-    // 👉 你可以在這裡寫下發送獎勵的代碼！
-}
-
 // 廣告關閉後重新計時
 - (void)didCloseAd:(STAAbstractAd *)ad {
     NSLog(@"[IPA918] 🚪 廣告已關閉！");
     if (ad == self.returnAd) {
-        NSLog(@"[IPA918] ⏱️ 啟動 30 分鐘冷卻機制");
+        NSLog(@"[IPA918] ⏱️ 啟動 %d 秒冷卻機制", COOLDOWN_TIME);
         [self recordInterstitialShowTime];
         isInterstitialReady = NO;
         [self.returnAd loadAdWithDelegate:self];
