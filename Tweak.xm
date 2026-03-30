@@ -7,8 +7,8 @@
 // ==========================================
 NSString *const myStartAppId = @"202921894";  
 
-// 🌟 測試用冷卻時間：30 秒 
-#define COOLDOWN_TIME 30 
+// 🌟 正式上線：30分鐘 (1800秒) 新手保護與冷卻時間
+#define COOLDOWN_TIME 1800 
 
 static BOOL isTimerExpired = NO;
 static BOOL isAdReadyToShow = NO; 
@@ -34,26 +34,35 @@ static BOOL hasPlayedStartupAd = NO;
     return sharedInstance;
 }
 
-// --- 🌟 30秒新手保護期 (測試用邏輯) ---
+// --- 🌟 30分鐘新手保護期 + 冷卻邏輯 ---
 - (BOOL)canShowReturnInterstitial {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     double currentTime = [[NSDate date] timeIntervalSince1970];
     
+    // 1. 第一次打開 APP
     double firstLaunchTime = [defaults doubleForKey:@"IPA918_FirstLaunchTime"];
     if (firstLaunchTime == 0) {
+        NSLog(@"[IPA918] 🆕 第一次打開 APP！啟動 30 分鐘「免廣告新手保護期」！");
         [defaults setDouble:currentTime forKey:@"IPA918_FirstLaunchTime"];
         [defaults synchronize];
         return NO; 
     }
     
+    // 2. 檢查保護期
     if (currentTime - firstLaunchTime < COOLDOWN_TIME) {
+        int remaining = (COOLDOWN_TIME - (currentTime - firstLaunchTime)) / 60;
+        NSLog(@"[IPA918] 🛡️ 新手保護期中... 剩餘約 %d 分鐘", remaining);
         return NO;
     }
     
+    // 3. 檢查返回廣告冷卻
     double lastShowTime = [defaults doubleForKey:@"IPA918_LastReturnAdTime"];
     if (currentTime - lastShowTime >= COOLDOWN_TIME) {
         return YES; 
     }
+    
+    int remainingMins = (COOLDOWN_TIME - (currentTime - lastShowTime)) / 60;
+    NSLog(@"[IPA918] ⏳ 返回廣告冷卻中... 剩餘約 %d 分鐘", remainingMins);
     return NO;
 }
 
@@ -66,18 +75,18 @@ static BOOL hasPlayedStartupAd = NO;
 
 // --- 🚀 初始化與廣告載入 ---
 - (void)initializeStartApp {
-    NSLog(@"[IPA918] 🚀 初始化 Start.io...");
+    NSLog(@"[IPA918] 🚀 啟動 Start.io 真實廣告模式...");
     STAStartAppSDK *sdk = [STAStartAppSDK sharedInstance];
     sdk.appID = myStartAppId;
     
-    // 🌟 1. 強制打開測試模式！(我們要找回上次成功彈出測試的那個畫面)
-    sdk.testAdsEnabled = YES; 
+    // 🌟 關閉測試模式，等伺服器派發真廣告！
+    sdk.testAdsEnabled = NO; 
     
-    // 🌟 2. 換回之前 100% 成功彈出的「獎勵影片」載入法
+    // 開局載入獎勵影片 (單價最高)
     self.startupAd = [[STAStartAppAd alloc] init];
     [self.startupAd loadRewardedVideoAdWithDelegate:self];
     
-    // 返回插頁保持原樣
+    // 返回載入一般插頁
     self.returnAd = [[STAStartAppAd alloc] init];
     [self.returnAd loadAdWithDelegate:self];
 }
@@ -138,7 +147,6 @@ static BOOL hasPlayedStartupAd = NO;
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification * _Nonnull note) {
         
-        // 🌟 退回原本最完美的 7 秒暖機 + 10 秒倒數
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             [[StartAppHelper sharedInstance] initializeStartApp];
         });
