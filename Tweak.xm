@@ -7,7 +7,7 @@
 // ==========================================
 NSString *const myStartAppId = @"202921894";  
 
-// 🌟 測試用冷卻時間：30 秒 (確認會跳廣告後，再改回 1800)
+// 🌟 測試用冷卻時間：30 秒 
 #define COOLDOWN_TIME 30 
 
 static BOOL isTimerExpired = NO;
@@ -70,14 +70,14 @@ static BOOL hasPlayedStartupAd = NO;
     STAStartAppSDK *sdk = [STAStartAppSDK sharedInstance];
     sdk.appID = myStartAppId;
     
-    // 🌟 確保關閉測試模式，挑戰真實廣告！
-    sdk.testAdsEnabled = NO; 
+    // 🌟 1. 強制打開測試模式！(我們要找回上次成功彈出測試的那個畫面)
+    sdk.testAdsEnabled = YES; 
     
-    // 載入開局插頁
+    // 🌟 2. 換回之前 100% 成功彈出的「獎勵影片」載入法
     self.startupAd = [[STAStartAppAd alloc] init];
-    [self.startupAd loadAdWithDelegate:self];
+    [self.startupAd loadRewardedVideoAdWithDelegate:self];
     
-    // 預載返回插頁
+    // 返回插頁保持原樣
     self.returnAd = [[STAStartAppAd alloc] init];
     [self.returnAd loadAdWithDelegate:self];
 }
@@ -99,7 +99,7 @@ static BOOL hasPlayedStartupAd = NO;
 - (void)tryTriggerBulldozeShow {
     if (isTimerExpired && isAdReadyToShow && !hasPlayedStartupAd) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            NSLog(@"[IPA918] 🎬 播放開局插頁廣告！");
+            NSLog(@"[IPA918] 🎬 播放開局廣告！");
             hasPlayedStartupAd = YES; 
             [self.startupAd showAd];
         });
@@ -110,7 +110,7 @@ static BOOL hasPlayedStartupAd = NO;
     if ([self canShowReturnInterstitial]) {
         if (isInterstitialReady) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                NSLog(@"[IPA918] 🎬 播放返回插頁廣告！");
+                NSLog(@"[IPA918] 🎬 播放返回廣告！");
                 [self.returnAd showAd];
             });
         } else {
@@ -130,7 +130,7 @@ static BOOL hasPlayedStartupAd = NO;
 @end
 
 // ==========================================
-// 🚀 核心注入點 (安全暖機模式)
+// 🚀 核心注入點
 // ==========================================
 %ctor {
     [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification
@@ -138,13 +138,12 @@ static BOOL hasPlayedStartupAd = NO;
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification * _Nonnull note) {
         
-        // 🌟 打開後 7 秒開始初始化（閃退高風險期已過，安全！）
+        // 🌟 退回原本最完美的 7 秒暖機 + 10 秒倒數
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             [[StartAppHelper sharedInstance] initializeStartApp];
         });
 
-        // 🌟 15 秒開局觸發
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(15.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             isTimerExpired = YES; 
             [[StartAppHelper sharedInstance] tryTriggerBulldozeShow];
         });
